@@ -135,17 +135,12 @@ input[type=range]{padding:0}
   <div id="reco"></div>
   <button class="ghost" id="saveReco" style="width:100%;margin-top:10px;display:none">Guardar esta recomendación</button></div>
  <div class="card"><h2>Recomendaciones guardadas</h2><div id="recs"></div></div>
-<div class="card"><h2>Sincronizar y respaldo</h2>
-  <button class="pri" id="btnG" style="width:100%">☁ Sincronizar con Google Drive</button>
-  <div class="k" id="gMsg" style="margin:8px 0 6px"></div>
-  <button class="ghost sm" id="btnGOut" style="display:none;width:100%;margin-bottom:6px">Desconectar mi cuenta de Google</button>
-  <div class="k">Tus datos se guardan en una carpeta privada de tu propio Drive: nadie más la ve, ni el dueño de la app.</div>
-  <hr style="border:0;border-top:1px solid var(--bd);margin:14px 0">
-  <button class="ghost" id="btnBk" style="width:100%">Exportar respaldo (.json)</button>
+<div class="card"><h2>Respaldo y Excel</h2>
+  <button class="pri" id="btnBk" style="width:100%">Exportar respaldo (.json)</button>
   <button class="ghost" id="btnImp" style="width:100%;margin-top:8px">Importar respaldo</button>
   <input type="file" id="impFile" accept=".json,application/json" style="display:none">
   <button class="ghost" id="btnXls" style="width:100%;margin-top:8px">Descargar Excel (.xlsx)</button>
-  <div class="k" style="margin-top:8px">El respaldo incluye todo, con fotos. El Excel es solo para consultar y no incluye las fotos.</div></div>
+  <div class="k" style="margin-top:8px">El respaldo incluye todo, con fotos: guárdalo en tu Drive y, para pasar tus datos a otro dispositivo, impórtalo allí. El Excel es solo para consultar y no incluye las fotos.</div></div>
 </section>
 
 <section id="v-reg">
@@ -515,7 +510,7 @@ $("#catMine").onclick=e=>{
 };
 syncCats();
 const UIK="finanzas-v1-ui",FF={"Sistema":'system-ui,-apple-system,"Segoe UI",Roboto,sans-serif',"Georgia":'Georgia,"Times New Roman",serif',"Times":'"Times New Roman",Times,serif',"Palatino":'"Palatino Linotype",Palatino,"Book Antiqua",serif',"Arial":'Arial,Helvetica,sans-serif',"Verdana":'Verdana,Geneva,sans-serif',"Trebuchet":'"Trebuchet MS",sans-serif',"Courier":'"Courier New",monospace'};
-const SECN=["Resumen principal","Cifras del mes","Monto esperado","Físico vs digital","Ahorros y meta","Saldo inicial","Ingresos vs egresos por día","Ingresos por subcategoría","Egresos por subcategoría","Recomendaciones","Recomendaciones guardadas","Sincronizar y respaldo"];
+const SECN=["Resumen principal","Cifras del mes","Monto esperado","Físico vs digital","Ahorros y meta","Saldo inicial","Ingresos vs egresos por día","Ingresos por subcategoría","Egresos por subcategoría","Recomendaciones","Recomendaciones guardadas","Respaldo y Excel"];
 const SECS=[...$("#v-res").children],PRE=["#2f7bff","#16a34a","#8b5cf6","#e11d48","#f59e0b","#14b8a6"];
 const DUI={ac:"",in:"",out:"",th:"dark",ff:"Sistema",fh:"Sistema",fs:16,ord:SECN.map((_,i)=>i),hide:[]};
 function loadUI(){let o={};try{o=JSON.parse(localStorage.getItem(UIK))||{}}catch(e){}
@@ -601,7 +596,6 @@ function crearXlsx(hojas){
   ];
   return zip(f);
 }
-const GOOGLE_CLIENT_ID=""; // PEGA AQUÍ tu Client ID de Google (termina en .apps.googleusercontent.com). Ver LEEME.txt
 function setSync(m){$("#sync").textContent=m}
 function flushQ(){if(S.pe){S.cm=Date.now();S.pe=false}S.tx.forEach(t=>t.p=0);if(S.del.length>500)S.del=S.del.slice(-500);if(S.delr.length>200)S.delr=S.delr.slice(-200);save()}
 function descargar(nombre,blob){
@@ -664,63 +658,7 @@ $("#impFile").onchange=async e=>{
   try{const n=fusionar(JSON.parse(await f.text()),"import");flushQ();toast("Respaldo importado ("+n+" registros)");render();setTipo(tipo)}
   catch(err){toast("Ese archivo no es un respaldo válido")}
 };
-/* ===== Sincronización con Google Drive (carpeta privada de la app) ===== */
-const GSC="https://www.googleapis.com/auth/drive.appdata",GFN="mis-finanzas-datos.json",GK=KEY+"-g";
-let GTOK=null,GEXP=0,GTC=null,GBUSY=false;
-const lget=k=>{try{return localStorage.getItem(k)}catch(e){return null}},lset=(k,v)=>{try{v==null?localStorage.removeItem(k):localStorage.setItem(k,v)}catch(e){}};
-const gOk=()=>!!(window.google&&google.accounts&&google.accounts.oauth2),gMsg=t=>{$("#gMsg").textContent=t};
-function gEstado(){
-  const b=$("#btnG");
-  if(!GOOGLE_CLIENT_ID){b.disabled=true;gMsg("La sincronización con Google no está configurada en esta copia de la app.");return}
-  if(!/^https?:$/.test(location.protocol)){b.disabled=true;gMsg("Disponible solo cuando la app está publicada en internet, no desde un archivo local.");return}
-  b.disabled=GBUSY;const t=lget(GK+"-t");
-  gMsg(t?"Última sincronización: "+t:"Conecta tu cuenta de Google para guardar tus datos en una carpeta privada de tu Drive y verlos en otros dispositivos.");
-  $("#btnGOut").style.display=lget(GK)?"block":"none";
-}
-function gInit(){
-  if(!GOOGLE_CLIENT_ID||gOk()||document.getElementById("gsi")||!navigator.onLine||!/^https?:$/.test(location.protocol))return;
-  const s=document.createElement("script");s.id="gsi";s.src="https://accounts.google.com/gsi/client";s.async=true;s.onerror=()=>s.remove();document.head.appendChild(s);
-}
-const gf=(u,o={})=>fetch(u,{...o,headers:{...(o.headers||{}),Authorization:"Bearer "+GTOK}}).then(r=>{if(r.status===401){GTOK=null;GEXP=0;throw new Error("auth")}if(!r.ok)throw new Error("http "+r.status);return r});
-function gPedir(){
-  if(!GOOGLE_CLIENT_ID)return;
-  if(!navigator.onLine){toast("Sin conexión a internet");return}
-  if(!gOk()){toast("Cargando Google… vuelve a pulsar en unos segundos");gInit();return}
-  if(GTOK&&Date.now()<GEXP-60000){sincronizar();return}
-  if(!GTC)GTC=google.accounts.oauth2.initTokenClient({client_id:GOOGLE_CLIENT_ID,scope:GSC,
-    callback:r=>{
-      if(r.error){gMsg(r.error==="access_denied"?"No diste el permiso en Google.":"No se pudo conectar con Google ("+r.error+").");return}
-      GTOK=r.access_token;GEXP=Date.now()+(+r.expires_in||3600)*1000;lset(GK,"1");sincronizar();
-    },
-    error_callback:()=>gMsg("Se cerró la ventana de Google sin terminar.")});
-  GTC.requestAccessToken({prompt:""});
-}
-async function sincronizar(){
-  if(GBUSY)return;GBUSY=true;$("#btnG").disabled=true;gMsg("Sincronizando…");
-  try{
-    const q=encodeURIComponent("name='"+GFN+"'");
-    const lst=await(await gf("https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q="+q+"&orderBy=createdTime&fields=files(id)&pageSize=5")).json();
-    const f=(lst.files||[])[0];
-    if(f)fusionar(await(await gf("https://www.googleapis.com/drive/v3/files/"+f.id+"?alt=media")).json(),"sync");
-    if(!S.cm&&(Object.keys(S.exp).length||Object.keys(S.meta).length||S.ini.fis||S.ini.dig||S.cats.ingreso.length||S.cats.egreso.length))S.cm=Date.now();
-    save();
-    const body=JSON.stringify(payload());
-    if(f)await gf("https://www.googleapis.com/upload/drive/v3/files/"+f.id+"?uploadType=media",{method:"PATCH",headers:{"Content-Type":"application/json"},body});
-    else{
-      const bd="fin"+Date.now(),meta=JSON.stringify({name:GFN,parents:["appDataFolder"],mimeType:"application/json"});
-      await gf("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart",{method:"POST",headers:{"Content-Type":"multipart/related; boundary="+bd},
-        body:"--"+bd+"\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n"+meta+"\r\n--"+bd+"\r\nContent-Type: application/json\r\n\r\n"+body+"\r\n--"+bd+"--"});
-    }
-    lset(GK+"-t",new Date().toLocaleString("es-PE",{dateStyle:"short",timeStyle:"short"}));
-    GBUSY=false;gEstado();render();setTipo(tipo);toast("Sincronizado ✓");
-  }catch(e){
-    GBUSY=false;$("#btnG").disabled=false;
-    gMsg(e.message==="auth"?"La sesión de Google venció. Pulsa de nuevo para reconectar.":/403/.test(e.message)?"Google rechazó el acceso (403). Revisa que la API de Drive esté habilitada y que tu correo esté autorizado.":"No se pudo sincronizar ("+e.message+"). Revisa tu conexión.");
-  }
-}
-$("#btnG").onclick=gPedir;
-$("#btnGOut").onclick=()=>{if(GTOK&&gOk())google.accounts.oauth2.revoke(GTOK,()=>{});GTOK=null;GEXP=0;lset(GK,null);gEstado();toast("Cuenta de Google desconectada")};
-$("#fecha").value=hoy();setTipo("ingreso");render();$("#sync").onclick=exportBackup;setBk();gEstado();gInit();addEventListener("online",gInit);
+$("#fecha").value=hoy();setTipo("ingreso");render();$("#sync").onclick=exportBackup;setBk();
 </script>
 <script>if("serviceWorker"in navigator&&/^https?:$/.test(location.protocol))addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));</script>
 </body></html>
