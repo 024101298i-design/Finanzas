@@ -45,6 +45,9 @@ button.sm{padding:7px 10px;font-size:13px}
 .li:last-child{border:0}
 .li .m{flex:1;min-width:0}
 .li .n{font-size:13px;color:var(--mu);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.li .m{cursor:pointer}
+.li.open .n{white-space:normal;overflow:visible;word-break:break-word;color:var(--tx);margin-top:2px}
+.li.open{align-items:flex-start}
 .th{width:40px;height:40px;border-radius:8px;object-fit:cover;border:1px solid var(--bd);cursor:pointer}
 .empty{color:var(--mu);text-align:center;padding:18px 0}
 #reco{white-space:pre-wrap;margin-top:10px;font-size:15px}
@@ -174,7 +177,8 @@ input[type=range]{padding:0}
  <div class="grid" style="margin-top:8px"><select id="ft"><option value="">Todos los tipos</option><option value="ingreso">Ingresos</option><option value="egreso">Egresos</option><option value="transf">Movimientos</option><option value="ahorro">Ahorros</option></select>
  <select id="fc"><option value="">Todas las subcategorías</option><option>Semanal</option><option>Adicional</option><option>Pasajes</option><option>Comida</option><option>Gastos</option><option>Otros</option></select></div>
  <select id="fm" style="margin-top:8px"><option value="">Físico y digital</option><option value="fis">Solo físico</option><option value="dig">Solo digital</option></select>
- <div class="k" id="ftot" style="margin-top:8px"></div></div>
+ <div class="k" id="ftot" style="margin-top:8px"></div>
+ <div class="k" style="margin-top:4px">Toca un registro para ver su descripción completa.</div></div>
  <div class="card" id="list"></div></section>
 <section id="v-aju">
  <div class="card"><h2>Colores</h2>
@@ -262,7 +266,7 @@ function render(){
   bars($("#bi"),"ingreso",ti);bars($("#bo"),"egreso",te);cmpChart();fdCard();metaCard();recsCard();
   const items=[...l].sort((a,b)=>b.date.localeCompare(a.date)||b.id-a.id).filter(histF);
   $("#ftot").textContent=items.length+" registros · Ingresos "+money(sum(items,"ingreso"))+" · Egresos "+money(sum(items,"egreso"));
-  $("#list").innerHTML=items.length?items.map(t=>`<div class="li">
+  $("#list").innerHTML=items.length?items.map(t=>`<div class="li${OPEN.has(t.id)?" open":""}" data-id="${t.id}">
     ${t.img?`<img class="th" data-i="${t.id}" src="${t.img}" alt="Foto">`:""}
     <div class="m"><div><b>${ICON[t.cat]||""} ${t.cat}</b> <span class="${t.type==="ingreso"?"in":t.type==="transf"||t.type==="ahorro"?"":"out"}">${t.type==="ingreso"?"+":t.type==="transf"?"⇄ ":t.type==="ahorro"?"🐷 ":"−"}${money(t.amt)}</span></div>
     <div class="n">${t.date}${mediaTxt(t)}${t.note?" · "+esc(t.note):""}</div></div>
@@ -282,6 +286,7 @@ function setTipo(t){
 function clearImg(){img=null;$("#foto").value="";$("#prev").style.display="none"}
 $("#chips").onclick=e=>{if(e.target.dataset.new){abrirCat();return}const c=e.target.dataset.c;if(!c)return;$("#cat").value=c;document.querySelectorAll("#chips .chip").forEach(x=>x.classList.toggle("on",x.dataset.c===c));sug()};
 let medio="fisico";
+const OPEN=new Set();
 $("#med").onclick=e=>{const m=e.target.dataset.m;if(!m)return;medio=m;document.querySelectorAll("#med .chip").forEach(x=>x.classList.toggle("on",x.dataset.m===m))};
 $("#tIn").onclick=()=>setTipo("ingreso");$("#tOut").onclick=()=>setTipo("egreso");$("#tMv").onclick=()=>setTipo("transf");$("#tAh").onclick=()=>setTipo("ahorro");
 
@@ -316,6 +321,7 @@ $("#add").onclick=()=>{
 
 $("#list").onclick=e=>{
   const d=e.target.dataset.d,i=e.target.dataset.i,ed=e.target.dataset.e;if(ed){startEdit(+ed);return}
+  const mm=e.target.closest(".m");if(mm&&d===undefined&&i===undefined){const li=mm.closest(".li"),id=+li.dataset.id;OPEN.has(id)?OPEN.delete(id):OPEN.add(id);li.classList.toggle("open");return}
   if(d){const id=+d;
     if(armed===id){S.tx=S.tx.filter(t=>t.id!==id);S.del.push(id);armed=null;save();flushQ()}else armed=id;
     render()}
